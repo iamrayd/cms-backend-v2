@@ -2,7 +2,7 @@ using ProjectCms.Services;
 using ProjectCms.Api.Services;
 using ProjectCms.Models;
 using ProjectCms.Services;
-using ProjectCms.Services;
+using ProjectCms.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,10 +13,11 @@ builder.Services.AddSwaggerGen();
 
 // 2. MongoDB settings
 builder.Services.Configure<MongoDbSettings>(
-    builder.Configuration.GetSection("MongoDb"));
+builder.Configuration.GetSection("MongoDb"));
 builder.Services.AddSingleton<PageService>(); // Page Serviceget
 builder.Services.AddSingleton<PostService>(); // Post Service
 builder.Services.AddSingleton<BannerService>(); //Banner Service
+builder.Services.AddSingleton<UserService>(); 
 builder.Services.AddHostedService<BannerExpiryWorker>(); //Banner Expirey
 builder.Services.AddSingleton<IActivityLogService, ActivityLogService>(); //Activity-log
 builder.Services.AddSingleton<ArchivedBannerService>(); //ArchivedBanner Service
