@@ -28,7 +28,8 @@ namespace ProjectCms.Services
         public async Task UpdateAsync(string id, Post post) =>
             await _posts.ReplaceOneAsync(x => x.Id == id, post);
 
+        // ⭐ FIXED DELETE — correct filter
         public async Task RemoveAsync(string id) =>
-            await _posts.DeleteOneAsync(id);
+            await _posts.DeleteOneAsync(x => x.Id == id);
     }
 }

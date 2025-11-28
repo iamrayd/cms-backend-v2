@@ -1,18 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using ProjectCms.Models;
 using ProjectCms.Services;
-using ProjectCms.Api.Services;            // ⭐ NEW: para ma gamit ang IActivityLogService
+using ProjectCms.Api.Services;
 
 namespace ProjectCms.Controllers
 {
     [ApiController]
-    [Route("api/Posts")]                  // ⭐ EXPLICIT: /api/Posts
+    [Route("api/Posts")]
     public class PostsController : ControllerBase
     {
         private readonly PostService _postService;
-        private readonly IActivityLogService _activityLogService;   // ⭐ NEW
+        private readonly IActivityLogService _activityLogService;
 
-        // ⭐ UPDATED: gi-inject nato ang IActivityLogService
         public PostsController(PostService postService, IActivityLogService activityLogService)
         {
             _postService = postService;
@@ -27,8 +26,6 @@ namespace ProjectCms.Controllers
             return Ok(posts);
         }
 
-        // ⭐ NEW: COUNT POSTS
-        // GET /api/Posts/count
         [HttpGet("count")]
         public async Task<ActionResult<int>> Count()
         {
@@ -37,7 +34,7 @@ namespace ProjectCms.Controllers
         }
 
         // GET /api/Posts/{id}
-        [HttpGet("{id:length(24)}")]
+        [HttpGet("{id}")]
         public async Task<ActionResult<Post>> GetById(string id)
         {
             var post = await _postService.GetAsync(id);
@@ -53,25 +50,28 @@ namespace ProjectCms.Controllers
 
             await _postService.CreateAsync(newPost);
 
-            // ⭐ NEW: LOG – New post created
-            await _activityLogService.LogAsync(
-                userName: "Admin",               // pwede nato ilisan og real user later
-                action: "Created Post",
-                contentType: "post",
-                contentTitle: newPost.Title,
-                contentId: newPost.Id ?? string.Empty,
-                status: "Success"
-            );
+            // Optional logging
+            try
+            {
+                await _activityLogService.LogAsync(
+                    userName: "Admin",
+                    action: "Created Post",
+                    contentType: "post",
+                    contentTitle: newPost.Title,
+                    contentId: newPost.Id ?? string.Empty,
+                    status: "Success"
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] Activity Log failed: {ex.Message}");
+            }
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = newPost.Id },
-                newPost
-            );
+            return CreatedAtAction(nameof(GetById), new { id = newPost.Id }, newPost);
         }
 
         // PUT /api/Posts/{id}
-        [HttpPut("{id:length(24)}")]
+        [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] Post updatedPost)
         {
             var existing = await _postService.GetAsync(id);
@@ -80,39 +80,59 @@ namespace ProjectCms.Controllers
             updatedPost.Id = id;
             await _postService.UpdateAsync(id, updatedPost);
 
-            // ⭐ NEW: LOG – Post updated
-            await _activityLogService.LogAsync(
-                userName: "Admin",
-                action: "Updated Post",
-                contentType: "post",
-                contentTitle: updatedPost.Title,
-                contentId: id,
-                status: "Success"
-            );
+            try
+            {
+                await _activityLogService.LogAsync(
+                    userName: "Admin",
+                    action: "Updated Post",
+                    contentType: "post",
+                    contentTitle: updatedPost.Title,
+                    contentId: id,
+                    status: "Success"
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] Activity Log failed: {ex.Message}");
+            }
 
             return NoContent();
         }
 
         // DELETE /api/Posts/{id}
-        [HttpDelete("{id:length(24)}")]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
         {
-            var existing = await _postService.GetAsync(id);
-            if (existing is null) return NotFound();
+            try
+            {
+                var existing = await _postService.GetAsync(id);
+                if (existing is null) return NotFound();
 
-            await _postService.RemoveAsync(id);
+                await _postService.RemoveAsync(id);
 
-            // ⭐ NEW: LOG – Post deleted
-            await _activityLogService.LogAsync(
-                userName: "Admin",
-                action: "Deleted Post",
-                contentType: "post",
-                contentTitle: existing.Title,
-                contentId: id,
-                status: "Success"
-            );
+                try
+                {
+                    await _activityLogService.LogAsync(
+                        userName: "Admin",
+                        action: "Deleted Post",
+                        contentType: "post",
+                        contentTitle: existing.Title,
+                        contentId: id,
+                        status: "Success"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARN] Activity Log failed: {ex.Message}");
+                }
 
-            return NoContent();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Delete Post failed: {ex}");
+                return StatusCode(500, "Error deleting post");
+            }
         }
     }
 }
